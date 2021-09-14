@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -59,7 +58,7 @@ func Test_Retry_NoRetry(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Log(log.Default()), Retry(0)).Then(http.DefaultClient).Do(req)
+	res, err := New(Retry(0)).Then(http.DefaultClient).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -84,7 +83,7 @@ func Test_Retry_NoBody(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Log(log.Default()), Retry(3)).Then(calls).Do(req)
+	res, err := New(Retry(3)).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -114,7 +113,7 @@ func Test_Retry_Seeker(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Log(log.Default()), Retry(3)).Then(calls).Do(req)
+	res, err := New(Retry(3)).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -143,7 +142,7 @@ func Test_Retry_Buffered(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Log(log.Default()), Retry(3)).Then(calls).Do(req)
+	res, err := New(Retry(3)).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

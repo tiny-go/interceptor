@@ -3,21 +3,22 @@ package interceptor
 import "net/http"
 
 func Log(logger interface {
-	Printf(string, ...interface{})
+	Debugf(string, ...interface{})
+	Errorf(string, ...interface{})
 }) Interceptor {
 	return func(next Doer) Doer {
 		return DoerFunc(
 			func(req *http.Request) (*http.Response, error) {
-				logger.Printf("Sending the request to %s\n", req.URL)
+				logger.Debugf("Sending the request: [%s] %s", req.Method, req.URL)
 
 				res, err := next.Do(req)
 				if err != nil {
-					logger.Printf("Error calling %s: %s", req.URL, err)
+					logger.Errorf("Error calling [%s] %s: %s", req.Method, req.URL, err)
 
 					return res, err
 				}
 
-				logger.Printf("Received the %q response\n", res.Status)
+				logger.Debugf("Received the response: %s", res.Status)
 
 				return res, err
 			},
