@@ -1,33 +1,16 @@
-package interceptor
+package interceptor_test
 
 import (
 	"bytes"
 	"context"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/tiny-go/interceptor"
 )
-
-type callChain chan func(*http.Request) (*http.Response, error)
-
-func (next callChain) Do(req *http.Request) (*http.Response, error) {
-	call := <-next
-
-	return call(req)
-}
-
-func doAndFail(*http.Request) (*http.Response, error) {
-	return nil, errExpected
-}
-
-func doReadBodyAndFail(r *http.Request) (*http.Response, error) {
-	ioutil.ReadAll(r.Body)
-
-	return nil, errExpected
-}
 
 func Test_Retry_ContextCancelled(t *testing.T) {
 	calls := make(callChain, 1)
@@ -44,7 +27,9 @@ func Test_Retry_ContextCancelled(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	if _, err := New(Retry(0)).Then(calls).Do(req); !errors.Is(err, context.Canceled) {
+	if _, err := interceptor.New(
+		interceptor.Retry(0),
+	).Then(calls).Do(req); !errors.Is(err, context.Canceled) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }
@@ -58,7 +43,9 @@ func Test_Retry_NoRetry(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Retry(0)).Then(http.DefaultClient).Do(req)
+	res, err := interceptor.New(
+		interceptor.Retry(0),
+	).Then(http.DefaultClient).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -83,7 +70,9 @@ func Test_Retry_NoBody(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Retry(3)).Then(calls).Do(req)
+	res, err := interceptor.New(
+		interceptor.Retry(3),
+	).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -113,7 +102,9 @@ func Test_Retry_Seeker(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Retry(3)).Then(calls).Do(req)
+	res, err := interceptor.New(
+		interceptor.Retry(3),
+	).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -132,7 +123,7 @@ func Test_Retry_Buffered(t *testing.T) {
 	calls <- doReadBodyAndFail
 	calls <- http.DefaultClient.Do
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts := httptest.NewServer(serveWithCode(http.StatusOK))
 	defer ts.Close()
 
 	body := bytes.NewBufferString("foo bar baz")
@@ -142,7 +133,9 @@ func Test_Retry_Buffered(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Retry(3)).Then(calls).Do(req)
+	res, err := interceptor.New(
+		interceptor.Retry(3),
+	).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

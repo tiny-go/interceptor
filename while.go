@@ -1,13 +1,14 @@
 package interceptor
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 )
 
-// UntilStatusCodeIs returns an error until specified response status code is received.
-func UntilStatusCodeIs(status int) Interceptor {
+// WhileFails is one of the configurable parts of retry strategy.
+// Specify the function to check the response and return descriptive error
+// message if needed.
+func WhileFails(checkFunc func(*http.Response) error) Interceptor {
 	return func(next Doer) Doer {
 		return DoerFunc(
 			func(req *http.Request) (*http.Response, error) {
@@ -16,11 +17,11 @@ func UntilStatusCodeIs(status int) Interceptor {
 					return nil, err
 				}
 
-				if res.StatusCode != status {
+				if err := checkFunc(res); err != nil {
 					io.Copy(io.Discard, res.Body)
 					res.Body.Close()
 
-					return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
+					return nil, err
 				}
 
 				return res, nil

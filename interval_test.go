@@ -1,4 +1,4 @@
-package interceptor
+package interceptor_test
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/tiny-go/interceptor"
 )
 
 func Test_Retry_WithInterval_ContextDeadline(t *testing.T) {
@@ -26,7 +28,10 @@ func Test_Retry_WithInterval_ContextDeadline(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Retry(3), WithInterval(time.Second)).Then(calls).Do(req)
+	res, err := interceptor.New(
+		interceptor.Retry(3),
+		interceptor.WithInterval(time.Second),
+	).Then(calls).Do(req)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -53,7 +58,10 @@ func Test_Retry_WithInterval(t *testing.T) {
 		t.Fatalf("cannot instantiate a client: %s", err)
 	}
 
-	res, err := New(Retry(3), WithInterval(100*time.Millisecond)).Then(calls).Do(req)
+	res, err := interceptor.New(
+		interceptor.Retry(3),
+		interceptor.WithInterval(100*time.Millisecond),
+	).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
