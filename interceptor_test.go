@@ -2,7 +2,7 @@ package interceptor_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -14,7 +14,7 @@ func doAndFail(*http.Request) (*http.Response, error) {
 }
 
 func doReadBodyAndFail(r *http.Request) (*http.Response, error) {
-	ioutil.ReadAll(r.Body)
+	io.ReadAll(r.Body)
 
 	return nil, errExpected
 }
@@ -29,7 +29,7 @@ func (readSeekCloser) Close() error {
 
 func serveWithCode(code int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ioutil.ReadAll(r.Body)
+		io.ReadAll(r.Body)
 
 		w.WriteHeader(code)
 	}
