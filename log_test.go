@@ -12,25 +12,37 @@ import (
 	"github.com/tiny-go/interceptor"
 )
 
-type logger struct {
-	mu sync.Mutex
+type logItem struct {
+	level   string
+	message string
+}
 
-	debugs []string
-	errors []string
+type logger struct {
+	mu   sync.Mutex
+	logs []logItem
+}
+
+func (l *logger) logf(level, format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.logs = append(l.logs, logItem{level, fmt.Sprintf(format, args...)})
 }
 
 func (l *logger) Debugf(format string, args ...interface{}) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.logf("debug", format, args...)
+}
 
-	l.debugs = append(l.debugs, fmt.Sprintf(format, args...))
+func (l *logger) Infof(format string, args ...interface{}) {
+	l.logf("info", format, args...)
+}
+
+func (l *logger) Warnf(format string, args ...interface{}) {
+	l.logf("warning", format, args...)
 }
 
 func (l *logger) Errorf(format string, args ...interface{}) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.errors = append(l.errors, fmt.Sprintf(format, args...))
+	l.logf("error", format, args...)
 }
 
 func Test_Log_Retry(t *testing.T) {
@@ -49,18 +61,17 @@ func Test_Log_Retry(t *testing.T) {
 
 		logger = new(logger)
 
-		expectedDebugLogs = []string{
-			"Sending the request: [POST] " + ts.URL,
-			"Sending the request: [POST] " + ts.URL,
-			"Sending the request: [POST] " + ts.URL,
-			"Sending the request: [POST] " + ts.URL,
-			"Received the response: 200 OK",
-		}
-
-		expectedErrorLogs = []string{
-			"Error calling [POST] " + ts.URL + ": failure",
-			"Error calling [POST] " + ts.URL + ": failure",
-			"Error calling [POST] " + ts.URL + ": failure",
+		expectedLogs = []logItem{
+			{"info", "Sending [POST] request to " + ts.URL},
+			{"debug", "Sending [POST] request to " + ts.URL},
+			{"warning", "Error calling [POST] " + ts.URL + ": failure"},
+			{"debug", "Sending [POST] request to " + ts.URL},
+			{"warning", "Error calling [POST] " + ts.URL + ": failure"},
+			{"debug", "Sending [POST] request to " + ts.URL},
+			{"warning", "Error calling [POST] " + ts.URL + ": failure"},
+			{"debug", "Sending [POST] request to " + ts.URL},
+			{"debug", "Received the response: 200 OK"},
+			{"info", "Received the response: 200 OK"},
 		}
 	)
 
@@ -70,8 +81,11 @@ func Test_Log_Retry(t *testing.T) {
 	}
 
 	res, err := interceptor.New(
+		// main "error report" logger
+		interceptor.Log(logger.Infof, logger.Errorf),
 		interceptor.Retry(3),
-		interceptor.Log(logger),
+		// retry "warning" logger
+		interceptor.Log(logger.Debugf, logger.Warnf),
 	).Then(calls).Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -83,19 +97,11 @@ func Test_Log_Retry(t *testing.T) {
 		t.Errorf("unexpected status code: %d", res.StatusCode)
 	}
 
-	if !reflect.DeepEqual(logger.debugs, expectedDebugLogs) {
+	if !reflect.DeepEqual(logger.logs, expectedLogs) {
 		t.Errorf(
-			"logger debug output:\n%s\ndoes not match expected:\n%s",
-			strings.Join(logger.debugs, "\n"),
-			strings.Join(expectedDebugLogs, "\n"),
-		)
-	}
-
-	if !reflect.DeepEqual(logger.errors, expectedErrorLogs) {
-		t.Errorf(
-			"logger error output:\n%s\ndoes not match expected:\n%s",
-			strings.Join(logger.errors, "\n"),
-			strings.Join(expectedDebugLogs, "\n"),
+			"logger debug output:\n%v\ndoes not match expected:\n%v",
+			logger.logs,
+			expectedLogs,
 		)
 	}
 }
